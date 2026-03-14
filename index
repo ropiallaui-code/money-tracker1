@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Tracker with Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
+        .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        .chart-container { margin: 20px 0; height: 250px; position: relative; }
+        .balance-card { text-align: center; background: #27ae60; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        input, select, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; }
+        button { background-color: #2980b9; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background-color: #1f6391; }
+        ul { list-style: none; padding: 0; }
+        li { background: #fff; border-left: 5px solid #3498db; display: flex; justify-content: space-between; padding: 12px; margin-bottom: 8px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .delete-btn { color: #e74c3c; cursor: pointer; font-weight: bold; padding: 0 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="balance-card">
+        <h3>Total Balance</h3>
+        <h1 id="balance">₱0.00</h1>
+    </div>
+
+    <!-- 2. Chart Section -->
+    <div class="chart-container">
+        <canvas id="budgetChart"></canvas>
+    </div>
+
+    <form id="budget-form">
+        <input type="text" id="text" placeholder="What is this for?" required>
+        <input type="number" id="amount" placeholder="Amount (₱)" required>
+        <select id="category">
+            <option value="Food">Food</option>
+            <option value="Rent">Rent</option>
+            <option value="Transport">Transport</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Income">Income (Deposit)</option>
+        </select>
+        <button type="submit">Add Transaction</button>
+    </form>
+
+    <ul id="list"></ul>
+</div>
+
+<script>
+    const balanceEl = document.getElementById('balance');
+    const listEl = document.getElementById('list');
+    const form = document.getElementById('budget-form');
+    const ctx = document.getElementById('budgetChart').getContext('2d');
+
+    let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+    let myChart;
+
+    
+    function updateChart() {
+        const categories = ["Food", "Rent", "Transport", "Entertainment"];
+        const dataValues = categories.map(cat => {
+            return transactions
+                .filter(t => t.category === cat)
+                .reduce((sum, t) => sum + t.amount, 0);
+        });
+
+        if (myChart) myChart.destroy(); 
+
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: categories,
+                datasets: [{
+                    data: dataValues,
+                    backgroundColor: ['#f1c40f', '#e67e22', '#3498db', '#9b59b6'],
+                    borderWidth: 1
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    function updateUI() {
+        listEl.innerHTML = '';
+        let total = 0;
+
+        transactions.forEach((t, index) => {
+            const isIncome = t.category === 'Income';
+            const item = document.createElement('li');
+            item.style.borderLeftColor = isIncome ? '#2ecc71' : '#e74c3c';
+            
+            item.innerHTML = `
+                ${t.text} <span>${isIncome ? '+' : '-'}${t.amount.toFixed(2)} 
+                <span class="delete-btn" onclick="removeTransaction(${index})">x</span></span>
+            `;
+            listEl.appendChild(item);
+            total += isIncome ? t.amount : -t.amount;
+        });
+
+        balanceEl.innerText = `P${total.toFixed(2)}`;
+        localStorage.setItem('transactions', JSON.stringify(transactions));
+        updateChart();
+    }
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        transactions.push({
+            text: document.getElementById('text').value,
+            amount: parseFloat(document.getElementById('amount').value),
+            category: document.getElementById('category').value
+        });
+        updateUI();
+        form.reset();
+    });
+
+    function removeTransaction(index) {
+        transactions.splice(index, 1);
+        updateUI();
+    }
+
+    updateUI(); 
+</script>
+
+</body>
